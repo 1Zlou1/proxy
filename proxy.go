@@ -1,49 +1,30 @@
 package main
 
 import (
-	"bytes"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 )
 
-const proxyAddr string = "localhost:9000"
-
-var (
-	counter            int    = 0
-	firstInstanceHost  string = "localhost:8081"
-	secondInstanceHost string = "localhost:8082"
-)
-
-func handleProxy(w http.ResponseWriter, r *http.Request) {
-
-	textBytes, err := ioutil.ReadAll(r.Body)
+func main() {
+	target := "http://localhost:8081"
+	proxy, err := createReverseProxy(target)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	text := string(textBytes)
 
-	if counter == 0 {
-		if _, err := http.Post(firstInstanceHost, "text/plain", bytes.NewBuffer([]byte(text))); err != nil {
-			log.Fatalln(err)
-		}
-		counter++
-		return
-	}
-
-	if counter == 1 {
-		if _, err := http.Post(secondInstanceHost, "text/plain", bytes.NewBuffer([]byte(text))); err != nil {
-			log.Fatalln(err)
-		}
-		counter--
-		return
-	}
-
+	http.Handle("/", proxy)
+	log.Fatal(http.ListenAndServe(":9000", nil))
 }
 
-func main() {
-	http.HandleFunc("/", handleProxy)
-	http.ListenAndServe(proxyAddr, nil)
+func createReverseProxy(target string) (http.Handler, error) {
+	targetURL, err := url.Parse(target)
+	if err != nil {
+		return nil, err
+	}
 
+	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+
+	return proxy, nil
 }
-
