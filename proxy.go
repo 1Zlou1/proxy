@@ -8,14 +8,13 @@ import (
 )
 
 var (
-	firstaddr  = "http://localhost:8081"
-	secondaddr = "http://localhost:8082"
+	firstAddr  = "http://localhost:8081"
+	secondAddr = "http://localhost:8082"
 	count      = 0
 )
 
 func main() {
-
-	http.Handle("/", Randserv())
+	http.HandleFunc("/", Randserv)
 	log.Fatal(http.ListenAndServe(":9000", nil))
 }
 
@@ -24,29 +23,27 @@ func createReverseProxy(target string) (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	proxy := httputil.NewSingleHostReverseProxy(targetURL)
-
-	return proxy, nil
+	return httputil.NewSingleHostReverseProxy(targetURL), nil
 }
 
-func Randserv() http.Handler {
+func Randserv(res http.ResponseWriter, req *http.Request) {
 	if count == 0 {
-		proxy, err := createReverseProxy(firstaddr)
+		proxy, err := createReverseProxy(firstAddr)
 		if err != nil {
-			log.Fatalln(err)
+			log.Println(err)
+			return
 		}
 		count++
-		return proxy
+		proxy.ServeHTTP(res, req)
 	}
 
 	if count == 1 {
-		proxy, err := createReverseProxy(secondaddr)
+		proxy, err := createReverseProxy(secondAddr)
 		if err != nil {
-			log.Fatalln(err)
+			log.Println(err)
+			return
 		}
 		count--
-		return proxy
+		proxy.ServeHTTP(res, req)
 	}
-	return nil
 }
